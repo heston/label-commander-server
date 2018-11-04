@@ -1,7 +1,6 @@
 const admin = require('firebase-admin');
 const crypto = require('crypto');
 const functions = require('firebase-functions');
-const titleCase = require('title-case');
 
 admin.initializeApp(functions.config().firebase);
 
@@ -16,20 +15,19 @@ function isAuthorized(key) {
     return key === secretkey;
 }
 
-function formatBody(body) {
-    return titleCase(body);
-}
-
-function writeLabel(body) {
+function writeLabel(body, qty) {
     const hash = crypto.createHash('sha1');
     hash.update(body);
     // Get current date and convert to Unix timestamp
     hash.update(String(Number(new Date())));
     const job_id = hash.digest('hex')
 
-    const key = `print_jobs/${job_id}/text`;
-    const formattedBody = formatBody(body);
-    return admin.database().ref(key).set(formattedBody);
+    const key = `print_jobs/${job_id}`;
+    const payload = {
+        text: body,
+        qty: qty,
+    };
+    return admin.database().ref(key).set(payload);
 }
 
 function printLabelAction(req, res) {
@@ -50,7 +48,9 @@ function printLabelAction(req, res) {
         return;
     }
 
-    writeLabel(body)
+    const qty = parseInt(req.body.qty, 10) || 1;
+
+    writeLabel(body, qty)
         .then(() => res.status(200).send('OK'))
         .catch(() => res.status(503).send('Could not save label to database'));
 }
