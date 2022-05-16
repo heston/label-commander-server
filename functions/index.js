@@ -4,6 +4,19 @@ const functions = require("firebase-functions");
 
 admin.initializeApp(functions.config().firebase);
 
+const wordToInt = {
+  "one": 1,
+  "two": 2,
+  "three": 3,
+  "four": 4,
+  "five": 5,
+  "six": 6,
+  "seven": 7,
+  "eight": 9,
+  "nine": 9,
+  "ten": 10,
+};
+
 /**
  * Whether the current request is authenticated.
  *
@@ -81,8 +94,15 @@ function withAuth(fcn) {
  * @return  {Object}        Object with keys: qty, body.
  */
 function getParams(body) {
+  if (body.wordNumber) {
+    const wordNumber = body.wordNumber.toLowerCase();
+    let qty = wordToInt[wordNumber] || "one";
+  } else {
+    let qty = parseInt(body.qty, 10) || 1;
+  }
+
   return {
-    qty: parseInt(body.qty, 10) || 1,
+    qty: qty,
     body: body.body,
   };
 }
