@@ -106,7 +106,7 @@ function getParams(body) {
   let qty = 0;
 
   if (body.qtyWord) {
-    qty = wordToNum[body.qtyWord];
+    qty = wordToNum[body.qtyWord.toLowerCase()];
   } else if (body.qty) {
     qty = parseInt(body.qty, 10);
   }
