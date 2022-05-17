@@ -61,8 +61,12 @@ function writeLabel(body, qty) {
  */
 function withAuth(fcn) {
   return function withAuthImpl(req, res) {
-    // Get the pin from the request
-    const secretKey = req.body.authentication;
+    // Get the with token from the request, looking in the body and headers
+    const secretKey = (
+      req.body.authentication ||
+      req.header("authorization") ||
+      ""
+    );
 
     if (!isAuthorized(secretKey)) {
       res.status(401).send("Unauthorized");
@@ -74,15 +78,43 @@ function withAuth(fcn) {
 }
 
 /**
+ * Mapping of number names to integers.
+ *
+ * @type {Object<string, number>}
+ */
+const wordToNum = {
+  "one": 1,
+  "two": 2,
+  "three": 3,
+  "four": 4,
+  "five": 5,
+  "six": 6,
+  "seven": 7,
+  "eight": 8,
+  "nine": 9,
+  "ten": 10,
+};
+
+/**
  * Get label printing parameters from an HTTP Request.
  *
  * @param   {Request.body}  body  Body of an HTTP request.
  *
- * @return  {Object}        Object with keys: qty, body.
+ * @return  {Object}        Object with keys: body, qty?, qtyWord?.
  */
 function getParams(body) {
+  let qty = 0;
+
+  if (body.qtyWord) {
+    qty = wordToNum[body.qtyWord];
+  } else if (body.qty) {
+    qty = parseInt(body.qty, 10);
+  }
+
+  qty = qty || 1;
+
   return {
-    qty: parseInt(body.qty, 10) || 1,
+    qty: qty,
     body: body.body,
   };
 }
