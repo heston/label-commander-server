@@ -34,27 +34,53 @@ To print a label, you need to set up IFTTT to trigger a Webhook action in respon
 1. Set the URL to the `Function URL` parameter printed during deployment. It will be something like, `https://us-central1-myproject.cloudfunctions.net/printBatch`, where `myproject` will be the name of your Firebase project.
 1. Set the method to `POST`.
 1. Set the content type to `application/json`.
+1. Under "Additional Headers" enter:
+    ```
+    Authorization: AUTH_KEY
+    ```
+    Where `AUTH_KEY` is the authentication key you set earlier.
 1. Set the body to:
     ```json
-    { "authentication": "AUTH_KEY", "items": [ {"body": "Text to print", "qty": 1} ] }
+    { "items": [ {"body": "Text to print", "qty": 1} ] }
     ```
-    Where `AUTH_KEY` is the authentication key you set earlier. The `body` and `qty` may be ingredients from your trigger.
+    The `body` and `qty` may be ingredients from your trigger.
 1. Click "Update action" to save your applet.
 1. Try it out!
 
 ## API
 
-This project provides two cloud functions: `printLabel` and `printBatch`. The former prints a single label, while the latter prints any number of labels.
+This project provides two cloud functions: `printLabel` and `printBatch`. The former prints a single label, while the latter prints any number of different labels.
 
 In the below examples, replace `MY-PROJECT` with the name of your cloud function deployment. The complete URLs for your particular project are printed on the console after a successful deployment (see Installation, above).
 
-### `printLabel`
+### Authentication
+
+The `AUTH_KEY` set during setup must be provided for every request. There are two ways to do this:
+
+1. As a header (preferred). Send the following header with every request:
+    ```
+    Authorization: AUTH_KEY
+    ```
+1. In the JSON body of the request. Set the following key in the JSON request body:
+    ```
+    "authentication": "AUTH_KEY"
+    ```
+
+    For example, the body of the request sent to `printLabel` would look like this:
+    ```json
+    {
+        "authentication": "AUTH_KEY",
+        "body": "Text to print",
+        "qty": 1
+    }
+    ```
+
+### `printLabel` Endpoint
 
 `POST` https://MY-PROJECT.cloudfunctions.net/printLabel
 
 ```json
 {
-    "authentication": "AUTH_KEY",
     "body": "Text to print",
     "qty": 1
 }
@@ -62,13 +88,12 @@ In the below examples, replace `MY-PROJECT` with the name of your cloud function
 
 Returns `200` on success.
 
-### `printBatch`
+### `printBatch` Endpoint
 
 `POST` https://MY-PROJECT.cloudfunctions.net/printBatch
 
 ```json
 {
-    "authentication": "AUTH_KEY",
     "items": [
         {
             "body": "Text to print",
