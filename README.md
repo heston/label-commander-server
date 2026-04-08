@@ -25,6 +25,9 @@ Firebase Cloud Function server for [Label Commander client](https://github.com/h
 
 ### Configure IFTTT
 
+> [!WARNING]
+> IFTTT no longer supports webhook actions in response to Google Assistant triggers.
+
 To print a label, you need to set up IFTTT to trigger a Webhook action in response to a trigger of your choice.
 
 1. Create a new applet in IFTTT.
@@ -41,9 +44,10 @@ To print a label, you need to set up IFTTT to trigger a Webhook action in respon
     Where `AUTH_KEY` is the authentication key you set earlier.
 1. Set the body to:
     ```json
-    { "items": [ {"body": "Text to print", "qty": 1} ] }
+    { "items": [ {"body": "Text to print", "qty": 1, "template": "simple"} ] }
     ```
-    The `body` and `qty` may be ingredients from your trigger.
+    The `body`, `qty`, and `template` values may be ingredients from your trigger. The template key may be omitted if using the default, or set to a valid value
+    (currently, `default` and `simple`).
 1. Click "Update action" to save your applet.
 1. Try it out!
 
@@ -82,7 +86,8 @@ The `AUTH_KEY` set during setup must be provided for every request. There are tw
 ```json
 {
     "body": "Text to print",
-    "qty": 1
+    "qty": 1,
+    "template": "default"
 }
 ```
 
@@ -97,11 +102,13 @@ Returns `200` on success.
     "items": [
         {
             "body": "Text to print",
-            "qty": 2
+            "qty": 2,
+            "template": "simple"
         },
         {
             "body": "Other text to print",
-            "qty": 1
+            "qty": 1,
+            "template": "default"
         }
     ]
 }
