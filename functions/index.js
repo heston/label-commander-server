@@ -1,8 +1,11 @@
 const admin = require("firebase-admin");
 const crypto = require("crypto");
-const functions = require("firebase-functions");
+const { onRequest } = require("firebase-functions/v2/https");
+const { defineSecret } = require('firebase-functions/params');
 
-admin.initializeApp(functions.config().firebase);
+admin.initializeApp();
+
+defineSecret("IFTTT_SECRETKEY");
 
 /**
  * Whether the current request is authenticated.
@@ -30,29 +33,6 @@ function isAuthorized(key) {
 }
 
 /**
- * Store a label request in the database.
- *
- * @param   {string}  body  The body text of the label.
- * @param   {number}  qty   The number of labels to print.
- *
- * @return  {Promise}        Promise for the async database write.
- */
-function writeLabel(body, qty) {
-  const hash = crypto.createHash("sha1");
-  hash.update(body);
-  // Get current date and convert to Unix timestamp
-  hash.update(String(Number(new Date())));
-  const jobId = hash.digest("hex");
-
-  const key = `print_jobs/${jobId}`;
-  const payload = {
-    text: body,
-    qty: qty,
-  };
-  return admin.database().ref(key).set(payload);
-}
-
-/**
  * Function decorator to authenticate an HTTP request.
  *
  * @param   {Function}  fcn  HTTP handler function to decorate.
@@ -75,6 +55,33 @@ function withAuth(fcn) {
 
     fcn(req, res);
   };
+}
+
+/**
+ * Store a label request in the database.
+ *
+ * @param   {string}  body  The body text of the label.
+ * @param   {number}  qty   The number of labels to print.
+ * @param   {string}  template   The template key to use.
+ *
+ * @return  {Promise}        Promise for the async database write.
+ */
+function writeLabel(body, qty, template) {
+  const hash = crypto.createHash("sha1");
+  hash.update(body);
+  // Get current date and convert to Unix timestamp
+  hash.update(String(Number(new Date())));
+  hash.update(template);
+  const jobId = hash.digest("hex");
+
+  const key = `print_jobs/${jobId}`;
+  const payload = {
+    text: body,
+    qty: qty,
+    template: template,
+  };
+
+  return admin.database().ref(key).set(payload);
 }
 
 /**
@@ -113,9 +120,16 @@ function getParams(body) {
 
   qty = qty || 1;
 
+  let template = "default";
+
+  if (body.template) {
+    template = body.template;
+  }
+
   return {
     qty: qty,
     body: body.body,
+    template: template,
   };
 }
 
@@ -125,17 +139,19 @@ function getParams(body) {
  * @param   {Request}  req  Express Request object.
  * @param   {Respobse}  res  Express Response object.
  */
-const printLabelAction = withAuth((req, res) => {
+const printLabelAction = (req, res) => {
+  console.info("Received print label request:", req.body);
   if (!req.body.body) {
+    console.error("Invalid request body");
     res.status(400).send("Bad Request");
     return;
   }
   const params = getParams(req.body);
 
-  writeLabel(params.body, params.qty)
+  writeLabel(params.body, params.qty, params.template)
       .then(() => res.status(200).send("OK"))
       .catch(() => res.status(503).send("Could not save label to database"));
-});
+};
 
 /**
  * HTTP handler function to print a batch of labels.
@@ -143,11 +159,14 @@ const printLabelAction = withAuth((req, res) => {
  * @param   {Request}  req  Express Request object.
  * @param   {Response}  res  Express Response object.
  */
-const printBatchAction = withAuth((req, res) => {
+const printBatchAction = (req, res) => {
   const items = req.body.items;
+  console.info("Received print batch request:", req.body);
 
   if (!Array.isArray(items)) {
+    console.error("Invalid request body: items should be an array");
     res.status(400).send("Bad Request");
+    return;
   }
 
   const results = [];
@@ -158,18 +177,15 @@ const printBatchAction = withAuth((req, res) => {
     }
 
     const params = getParams(item);
-    results.push(writeLabel(params.body, params.qty));
+    results.push(writeLabel(params.body, params.qty, params.template));
   });
 
   Promise.all(results)
       .then(() => res.status(200).send("OK"))
       .catch(() => res.status(503).send("Could not save label(s) to database"));
-});
+};
 
-exports.printLabel = functions
-    .runWith({secrets: ["IFTTT_SECRETKEY"]})
-    .https.onRequest(printLabelAction);
+const httpOpts = { secrets: ["IFTTT_SECRETKEY"] };
 
-exports.printBatch = functions
-    .runWith({secrets: ["IFTTT_SECRETKEY"]})
-    .https.onRequest(printBatchAction);
+exports.printLabel = onRequest(httpOpts, withAuth(printLabelAction));
+exports.printBatch = onRequest(httpOpts, withAuth(printBatchAction));
